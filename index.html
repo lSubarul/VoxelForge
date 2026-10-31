@@ -12,7 +12,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
-  <link rel="stylesheet" href="CSS/style.css">
+  <link rel="stylesheet" href="CSS/style.css?v=2">
 
   <style id="testimonial-layout-overrides">
     #testimonials .reviews-toolbar {
@@ -43,13 +43,11 @@
       #testimonials .review-more-btn { width:100%; }
     }
   </style>
-
 </head>
 <body>
 
   <canvas id="particle-canvas" aria-hidden="true"></canvas>
 
-  <!-- NAVBAR -->
   <nav class="navbar navbar-expand-lg navbar-dark fixed-top custom-navbar">
     <div class="container">
       <a class="navbar-brand fw-bold d-flex align-items-center gap-2 slanted-title" href="#header">
@@ -61,7 +59,7 @@
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
-          <li class="nav-item"><a class="nav-link" href="#header">Header</a></li>
+          <li class="nav-item"><a class="nav-link active" href="#header">Header</a></li>
           <li class="nav-item"><a class="nav-link" href="#showcase">3D Feature Stage</a></li>
           <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
           <li class="nav-item"><a class="nav-link" href="#testimonials">Testimonial</a></li>
@@ -78,7 +76,6 @@
     </div>
   </nav>
 
-  <!-- HEADER / HERO (มีวิดีโอพื้นหลังเบลอ) -->
   <header id="header" class="hero-section d-flex align-items-center">
     <video class="hero-bg-video" autoplay muted loop playsinline preload="auto" aria-hidden="true">
       <source src="Background/1.mp4" type="video/mp4">
@@ -147,7 +144,6 @@
     </div>
   </header>
 
-  <!-- 3D SPOTLIGHT STAGE -->
   <section id="showcase" class="spotlight-stage-section stage-off position-relative overflow-hidden">
     <div class="spotlight-ambient-glow" id="ambient-glow"></div>
 
@@ -231,7 +227,6 @@
     </div>
   </section>
 
-  <!-- FEATURES -->
   <section id="features" class="py-5 section-padding">
     <div class="container">
       <div class="text-center mb-5">
@@ -280,7 +275,6 @@
     </div>
   </section>
 
-  <!-- TESTIMONIALS -->
   <section id="testimonials" class="py-5 section-padding bg-surface-alt">
     <div class="container">
       <div class="text-center mb-5">
@@ -347,7 +341,6 @@
     </div>
   </section>
 
-  <!-- PRICING -->
   <section id="pricing" class="py-5 section-padding">
     <div class="container">
       <div class="text-center mb-5">
@@ -407,7 +400,6 @@
     </div>
   </section>
 
-  <!-- CTA -->
   <section id="cta" class="py-5">
     <div class="container">
       <div class="cta-banner p-5 rounded-4 text-center">
@@ -427,7 +419,6 @@
     </div>
   </section>
 
-  <!-- FOOTER -->
   <footer id="social" class="footer-section py-5 border-top border-secondary">
     <div class="container text-center">
       <h4 class="fw-bold mb-2 slanted-heading">ติดตามเราบนโซเชียลมีเดีย!</h4>
@@ -494,10 +485,192 @@
         sync();
       };
 
+      const initNavAndSocialFix = () => {
+        const navbar = document.querySelector('.custom-navbar');
+        const navLinks = Array.from(document.querySelectorAll('.custom-navbar .nav-link[href^="#"]'));
+        const socialBtns = Array.from(document.querySelectorAll('#social .social-btn'));
+
+        let scrollRafId = null;
+        let lockedHash = null;
+        let lockTimeout = null;
+
+        const replayTargetAnimation = (targetEl) => {
+          if (!targetEl) return;
+
+          document.querySelectorAll('.nav-target-play').forEach((el) => {
+            el.classList.remove('nav-target-play');
+          });
+
+          void targetEl.offsetWidth;
+          targetEl.classList.add('nav-target-play');
+
+          clearTimeout(targetEl._animTimeout);
+          targetEl._animTimeout = setTimeout(() => {
+            targetEl.classList.remove('nav-target-play');
+          }, 1100);
+        };
+
+        const setActiveNavLink = (hash) => {
+          navLinks.forEach((link) => {
+            link.classList.toggle('active', link.getAttribute('href') === hash);
+          });
+        };
+
+        const smoothScrollToTarget = (targetEl, hash) => {
+          if (!targetEl) return;
+
+          if (scrollRafId) {
+            cancelAnimationFrame(scrollRafId);
+            scrollRafId = null;
+          }
+
+          lockedHash = hash;
+          clearTimeout(lockTimeout);
+          setActiveNavLink(hash);
+
+          const navHeight = navbar ? navbar.offsetHeight : 74;
+          const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+          const rawTargetTop = targetEl.getBoundingClientRect().top + window.scrollY - (navHeight - 4);
+          const destinationY = hash === '#header' ? 0 : (hash === '#social' ? maxScroll : Math.min(maxScroll, Math.max(0, rawTargetTop)));
+
+          const startY = window.scrollY;
+          const distance = destinationY - startY;
+
+          if (Math.abs(distance) < 16) {
+            window.scrollTo(0, destinationY);
+            replayTargetAnimation(targetEl);
+            lockTimeout = setTimeout(() => { lockedHash = null; }, 500);
+            return;
+          }
+
+          replayTargetAnimation(targetEl);
+
+          const duration = Math.min(620, Math.max(300, Math.abs(distance) * 0.42));
+          const startTime = performance.now();
+          document.documentElement.classList.add('is-custom-scrolling');
+
+          const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+          const step = (now) => {
+            const elapsed = now - startTime;
+            const progress = Math.min(1, elapsed / duration);
+            const eased = easeOutCubic(progress);
+
+            window.scrollTo(0, startY + distance * eased);
+            setActiveNavLink(hash);
+
+            if (progress < 1) {
+              scrollRafId = requestAnimationFrame(step);
+            } else {
+              document.documentElement.classList.remove('is-custom-scrolling');
+              scrollRafId = null;
+              setActiveNavLink(hash);
+              if (Math.abs(distance) > window.innerHeight * 0.65 || hash === '#social') {
+                replayTargetAnimation(targetEl);
+              }
+              lockTimeout = setTimeout(() => { lockedHash = null; }, 500);
+            }
+          };
+
+          scrollRafId = requestAnimationFrame(step);
+        };
+
+        window.addEventListener('click', (e) => {
+          const link = e.target.closest('a[href^="#"]');
+          if (!link) return;
+
+          const hash = link.getAttribute('href');
+          if (!hash || hash === '#') return;
+
+          const targetEl = document.querySelector(hash);
+          if (!targetEl) return;
+
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+
+          const matchingNavLink = navLinks.find((nav) => nav.getAttribute('href') === hash) || (link.classList.contains('nav-link') ? link : null);
+          if (matchingNavLink) {
+            matchingNavLink.classList.remove('is-clicked');
+            void matchingNavLink.offsetWidth;
+            matchingNavLink.classList.add('is-clicked');
+          }
+
+          history.replaceState(null, '', hash);
+
+          const navCollapse = document.getElementById('navbarNav');
+          if (navCollapse && navCollapse.classList.contains('show') && window.bootstrap) {
+            const bsCollapse = window.bootstrap.Collapse.getOrCreateInstance(navCollapse);
+            bsCollapse.hide();
+          }
+
+          smoothScrollToTarget(targetEl, hash);
+        }, true);
+
+        const updateActiveOnScroll = () => {
+          if (scrollRafId || lockedHash) {
+            if (lockedHash) setActiveNavLink(lockedHash);
+            return;
+          }
+
+          const scrollBottom = window.innerHeight + window.scrollY;
+          const docHeight = document.documentElement.scrollHeight;
+
+          if (docHeight - scrollBottom <= 45) {
+            setActiveNavLink('#social');
+            return;
+          }
+
+          const checkLine = window.scrollY + (navbar ? navbar.offsetHeight + 90 : 160);
+          let currentHash = '#header';
+
+          navLinks.forEach((link) => {
+            const hash = link.getAttribute('href');
+            const section = document.querySelector(hash);
+            if (section && section.offsetTop <= checkLine) {
+              currentHash = hash;
+            }
+          });
+
+          setActiveNavLink(currentHash);
+        };
+
+        window.addEventListener('scroll', () => {
+          requestAnimationFrame(updateActiveOnScroll);
+        }, { passive: true });
+        updateActiveOnScroll();
+
+        socialBtns.forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const href = btn.getAttribute('href');
+            const target = btn.getAttribute('target');
+
+            btn.classList.remove('is-social-clicked');
+            void btn.offsetWidth;
+            btn.classList.add('is-social-clicked');
+
+            if (href) {
+              e.preventDefault();
+              setTimeout(() => {
+                if (target === '_blank') {
+                  window.open(href, '_blank', 'noopener');
+                } else {
+                  window.location.href = href;
+                }
+              }, 220);
+            }
+          });
+        });
+      };
+
       if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initReviewLayout, { once:true });
+        document.addEventListener('DOMContentLoaded', () => {
+          initReviewLayout();
+          initNavAndSocialFix();
+        }, { once: true });
       } else {
         initReviewLayout();
+        initNavAndSocialFix();
       }
     })();
   </script>
